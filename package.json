@@ -1,0 +1,32 @@
+{
+  "name": "backend-rest-api-nodejs",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/samadiftikhar/backend-rest-api-nodejs#readme",
+  "bugs": {
+    "url": "https://github.com/samadiftikhar/backend-rest-api-nodejs/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samadiftikhar/backend-rest-api-nodejs.git"
+  },
+  "license": "ISC",
+  "author": "Abdul Samad",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon app.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "body-parser": "^2.2.2",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.4.1",
+    "multer": "^2.1.1",
+    "nodemon": "^3.1.14",
+    "uuid": "^14.0.0"
+  }
+}
