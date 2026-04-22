@@ -57,7 +57,15 @@ app.use((error, req, res, next) => {
 mongoose
     .connect(MONGODB_URI)
     .then(result => {
-        app.listen(8000);
+        const server = app.listen(8000);
+
+        const socket = require('./service/socket');
+        const io = socket.init(server);
+
+        io.on('connection', socket => {
+
+        });
+
     })
     .catch(err => {
         console.log(err);

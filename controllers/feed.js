@@ -58,31 +58,46 @@ exports.createPost = async (req, res, next) => {
         error.statusCode = 422;
         throw error;
     }
+
     if (!req.file) {
         const error = new Error('no image provided');
         error.statusCode = 422;
         throw error;
     }
+
     const title = req.body.title;
     const content = req.body.content;
     const imageUrl = req.file.path;
 
     const post = new Post({
-        title: title,
-        content: content,
-        imageUrl: imageUrl,
+        title,
+        content,
+        imageUrl,
         creator: req.userId,
     });
+
     try {
         await post.save();
-        const user = await User.findById(req.userId)
+
+        const user = await User.findById(req.userId);
         if (!user) {
             const error = new Error('user not found');
             error.statusCode = 404;
             throw error;
         }
+
         user.posts.push(post);
         await user.save();
+
+        // ✅ SOCKET EMIT
+        const io = require('../service/socket').getIO();
+        io.emit('posts', {
+            action: 'create',
+            post: post,
+            creator: { _id: user._id, name: user.name },
+            source: 'server'
+        });
+
 
 
         res.status(201).json({
@@ -90,6 +105,7 @@ exports.createPost = async (req, res, next) => {
             post: post,
             creator: { _id: user._id, name: user.name }
         });
+
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -118,13 +134,13 @@ exports.updatePost = async (req, res, next) => {
         throw error;
     }
     try {
-        const post = await Post.findById(postId)
+        const post = await Post.findById(postId).populate('creator');
         if (!post) {
             const error = new Error('could not find post');
             error.statusCode = 404;
             throw error;
         }
-        if (post.creator.toString() !== req.userId) {
+        if (post.creator._id.toString() !== req.userId) {
             const error = new Error('not authorized');
             error.statusCode = 403;
             throw error;
@@ -138,9 +154,19 @@ exports.updatePost = async (req, res, next) => {
         post.imageUrl = imageUrl;
         const result = await post.save();
 
+        // 🔥 SOCKET EMIT
+        const io = require('../service/socket').getIO();
+
+        io.emit('posts', {
+            action: 'update',
+            post: result,
+            creator: { _id: post.creator._id, name: post.creator.name }
+        });
+
         res.status(200).json({
             message: 'post updated',
-            post: result
+            post: result,
+            creator: { _id: post.creator._id, name: post.creator.name }
         });
     } catch (err) {
         if (!err.statusCode) {
@@ -153,13 +179,16 @@ exports.updatePost = async (req, res, next) => {
 
 exports.deletePost = async (req, res, next) => {
     const postId = req.params.postId;
+
     try {
-        const post = await Post.findById(postId)
+        const post = await Post.findById(postId);
+
         if (!post) {
             const error = new Error('could not find post');
             error.statusCode = 404;
             throw error;
         }
+
         if (post.creator.toString() !== req.userId) {
             const error = new Error('not authorized');
             error.statusCode = 403;
@@ -168,16 +197,24 @@ exports.deletePost = async (req, res, next) => {
 
         clearImage(post.imageUrl);
 
-        await Post.findByIdAndDelete(postId); // ✅ FIX HERE
+        await Post.findByIdAndDelete(postId);
 
         const user = await User.findById(req.userId);
-
         user.posts.pull(postId);
         await user.save();
+
+        // 🔥 SOCKET EMIT (REAL-TIME DELETE)
+        const io = require('../service/socket').getIO();
+
+        io.emit('posts', {
+            action: 'delete',
+            postId: postId
+        });
 
         res.status(200).json({
             message: 'post deleted'
         });
+
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -185,7 +222,6 @@ exports.deletePost = async (req, res, next) => {
         next(err);
     }
 };
-
 const clearImage = filePath => {
     filePath = path.join(__dirname, '..', filePath);
     fs.unlink(filePath, err => {
