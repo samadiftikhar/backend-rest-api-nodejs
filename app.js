@@ -4,10 +4,9 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
-
-
-const feedRoutes = require('./routes/feed');
-const authRoutes = require('./routes/auth');
+const { graphqlHTTP } = require('express-graphql');
+const graphqlSchema = require('./graphql/schema');
+const graphqlResolvers = require('./graphql/resolvers');
 
 const MONGODB_URI = 'mongodb+srv://root123:root123@cluster0.pfh2gud.mongodb.net/messages'
 
@@ -42,9 +41,11 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use('/feed', feedRoutes);
-app.use('/auth', authRoutes);
-
+app.use('/graphql', graphqlHTTP({
+    schema: graphqlSchema,
+    rootValue: graphqlResolvers,
+    graphiql: true
+}));
 app.use((error, req, res, next) => {
 
     const status = error.statusCode || 500;
@@ -57,14 +58,8 @@ app.use((error, req, res, next) => {
 mongoose
     .connect(MONGODB_URI)
     .then(result => {
-        const server = app.listen(8000);
+        app.listen(8000);
 
-        const socket = require('./service/socket');
-        const io = socket.init(server);
-
-        io.on('connection', socket => {
-
-        });
 
     })
     .catch(err => {
