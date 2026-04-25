@@ -16,12 +16,35 @@ const authRoutes = require('./routes/auth');
 
 const app = express();
 
-/* -------------------- SAFE IMAGE STORAGE -------------------- */
+/* -------------------- SECURITY HEADERS (FIX CORP ISSUE) -------------------- */
+app.use((req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'); // 🔥 FIX
+    next();
+});
+
+/* -------------------- HELMET -------------------- */
+app.use(
+    helmet({
+        crossOriginResourcePolicy: false, // IMPORTANT: disable helmet default CORP
+    })
+);
+
+/* -------------------- LOGGING -------------------- */
+const accessLogStream = fs.createWriteStream(
+    path.join(__dirname, 'access.log'),
+    { flags: 'a' }
+);
+
+app.use(morgan('combined', { stream: accessLogStream }));
+
+/* -------------------- BODY PARSER -------------------- */
+app.use(bodyParser.json());
+
+/* -------------------- FILE STORAGE -------------------- */
 const fileStorage = multer.diskStorage({
     destination: function (req, file, cb) {
         const dir = path.join(__dirname, 'images');
 
-        // ensure folder exists (safe for local + Heroku)
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
@@ -30,7 +53,6 @@ const fileStorage = multer.diskStorage({
     },
 
     filename: function (req, file, cb) {
-        // FIX: keep extension (IMPORTANT for image rendering)
         const ext = path.extname(file.originalname);
         cb(null, uuidv4() + ext);
     }
@@ -49,26 +71,23 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-/* -------------------- LOGGING -------------------- */
-const accessLogStream = fs.createWriteStream(
-    path.join(__dirname, 'access.log'),
-    { flags: 'a' }
+/* -------------------- MULTER -------------------- */
+app.use(
+    multer({
+        storage: fileStorage,
+        fileFilter: fileFilter
+    }).single('image')
 );
 
-app.use(helmet());
-app.use(morgan('combined', { stream: accessLogStream }));
-
-/* -------------------- BODY PARSER -------------------- */
-app.use(bodyParser.json());
-
-/* -------------------- MULTER -------------------- */
-app.use(multer({
-    storage: fileStorage,
-    fileFilter: fileFilter
-}).single('image'));
-
-/* -------------------- STATIC IMAGES -------------------- */
-app.use('/images', express.static(path.join(__dirname, 'images')));
+/* -------------------- STATIC IMAGES (IMPORTANT FIX HERE) -------------------- */
+app.use(
+    '/images',
+    express.static(path.join(__dirname, 'images'), {
+        setHeaders: (res) => {
+            res.set('Cross-Origin-Resource-Policy', 'cross-origin'); // 🔥 important
+        }
+    })
+);
 
 /* -------------------- CORS -------------------- */
 app.use((req, res, next) => {
@@ -94,16 +113,15 @@ app.use((error, req, res, next) => {
 /* -------------------- DB + SERVER -------------------- */
 mongoose
     .connect(MONGODB_URI)
-    .then(result => {
+    .then(() => {
         const server = app.listen(process.env.PORT || 8080);
 
         const socket = require('./service/socket');
         const io = socket.init(server);
 
-        io.on('connection', socket => {
+        io.on('connection', (socket) => {
             console.log("Client connected");
         });
-
     })
     .catch(err => {
         console.log(err);
