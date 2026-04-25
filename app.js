@@ -16,18 +16,19 @@ const authRoutes = require('./routes/auth');
 
 const app = express();
 
-/* -------------------- SECURITY HEADERS (FIX CORP ISSUE) -------------------- */
-app.use((req, res, next) => {
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'); // 🔥 FIX
-    next();
-});
-
-/* -------------------- HELMET -------------------- */
+/* -------------------- SECURITY HEADERS (FIXED) -------------------- */
 app.use(
     helmet({
-        crossOriginResourcePolicy: false, // IMPORTANT: disable helmet default CORP
+        contentSecurityPolicy: false, // ✅ FIX: removes CSP blocking eval issue
+        crossOriginResourcePolicy: false // ✅ FIX: avoids CORB/CORP image blocking
     })
 );
+
+/* -------------------- GLOBAL CORP HEADER -------------------- */
+app.use((req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+});
 
 /* -------------------- LOGGING -------------------- */
 const accessLogStream = fs.createWriteStream(
@@ -40,7 +41,7 @@ app.use(morgan('combined', { stream: accessLogStream }));
 /* -------------------- BODY PARSER -------------------- */
 app.use(bodyParser.json());
 
-/* -------------------- FILE STORAGE -------------------- */
+/* -------------------- MULTER STORAGE -------------------- */
 const fileStorage = multer.diskStorage({
     destination: function (req, file, cb) {
         const dir = path.join(__dirname, 'images');
@@ -79,12 +80,12 @@ app.use(
     }).single('image')
 );
 
-/* -------------------- STATIC IMAGES (IMPORTANT FIX HERE) -------------------- */
+/* -------------------- STATIC IMAGES (IMPORTANT FIX) -------------------- */
 app.use(
     '/images',
     express.static(path.join(__dirname, 'images'), {
         setHeaders: (res) => {
-            res.set('Cross-Origin-Resource-Policy', 'cross-origin'); // 🔥 important
+            res.set('Cross-Origin-Resource-Policy', 'cross-origin');
         }
     })
 );
