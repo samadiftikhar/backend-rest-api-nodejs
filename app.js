@@ -1,15 +1,19 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
-
+const helmet = require('helmet');
+const compression = require('compression');
+const morgan = require('morgan');
+const MONGODB_URI =
+    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0.pfh2gud.mongodb.net/${process.env.MONGO_DB}`
 
 const feedRoutes = require('./routes/feed');
 const authRoutes = require('./routes/auth');
 
-const MONGODB_URI = 'mongodb+srv://root123:root123@cluster0.pfh2gud.mongodb.net/messages'
 
 const app = express();
 const fileStorage = multer.diskStorage({
@@ -29,6 +33,14 @@ const fileFilter = (req, file, cb) => {
         cb(null, false);
     }
 }
+const accessLogStream = fs.createWriteStream(
+    path.join(__dirname, 'access.log'),
+    { flags: 'a' }
+);
+
+app.use(helmet());
+app.use(compression());
+app.use(morgan('combined', { stream: accessLogStream }));
 
 app.use(bodyParser.json()); // application/json
 
@@ -57,7 +69,7 @@ app.use((error, req, res, next) => {
 mongoose
     .connect(MONGODB_URI)
     .then(result => {
-        const server = app.listen(8000);
+        const server = app.listen(process.env.PORT || 8080);
 
         const socket = require('./service/socket');
         const io = socket.init(server);

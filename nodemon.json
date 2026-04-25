@@ -1,0 +1,9 @@
+{
+    "env": {
+        "PORT": "8080",
+        "MONGO_USER": "root123",
+        "MONGO_PASSWORD": "root123",
+        "MONGO_DB": "messages",
+        "STRIPE_KEY": ""
+    }
+}
