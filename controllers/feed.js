@@ -67,7 +67,7 @@ exports.createPost = async (req, res, next) => {
 
     const title = req.body.title;
     const content = req.body.content;
-    const imageUrl = req.file.path;
+    const imageUrl = req.file.filename;
 
     const post = new Post({
         title,
@@ -126,7 +126,7 @@ exports.updatePost = async (req, res, next) => {
     const content = req.body.content;
     let imageUrl = req.body.image;
     if (req.file) {
-        imageUrl = req.file.path;
+        imageUrl = req.file.filename;
     }
     if (!imageUrl) {
         const error = new Error('no file picked');
