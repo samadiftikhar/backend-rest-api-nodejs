@@ -16,27 +16,27 @@ const authRoutes = require('./routes/auth');
 
 const app = express();
 
-// Safe Image Storage
+/* -------------------- SAFE IMAGE STORAGE -------------------- */
 const fileStorage = multer.diskStorage({
     destination: function (req, file, cb) {
         const dir = path.join(__dirname, 'images');
 
-        // ensure folder exists (IMPORTANT for Heroku)
+        // ensure folder exists (safe for local + Heroku)
         if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir);
+            fs.mkdirSync(dir, { recursive: true });
         }
 
         cb(null, dir);
     },
 
     filename: function (req, file, cb) {
-        // FIX: keep file extension (.jpg, .png etc.)
+        // FIX: keep extension (IMPORTANT for image rendering)
         const ext = path.extname(file.originalname);
         cb(null, uuidv4() + ext);
     }
 });
 
-//File Filter
+/* -------------------- FILE FILTER -------------------- */
 const fileFilter = (req, file, cb) => {
     if (
         file.mimetype === "image/png" ||
@@ -49,7 +49,7 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-//Logging
+/* -------------------- LOGGING -------------------- */
 const accessLogStream = fs.createWriteStream(
     path.join(__dirname, 'access.log'),
     { flags: 'a' }
@@ -58,19 +58,19 @@ const accessLogStream = fs.createWriteStream(
 app.use(helmet());
 app.use(morgan('combined', { stream: accessLogStream }));
 
-// BODY PARSER
+/* -------------------- BODY PARSER -------------------- */
 app.use(bodyParser.json());
 
-// Multer
+/* -------------------- MULTER -------------------- */
 app.use(multer({
     storage: fileStorage,
     fileFilter: fileFilter
 }).single('image'));
 
-//Static Images
+/* -------------------- STATIC IMAGES -------------------- */
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-//Cors
+/* -------------------- CORS -------------------- */
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
@@ -78,11 +78,11 @@ app.use((req, res, next) => {
     next();
 });
 
-// Routes
+/* -------------------- ROUTES -------------------- */
 app.use('/feed', feedRoutes);
 app.use('/auth', authRoutes);
 
-//Error Handling
+/* -------------------- ERROR HANDLING -------------------- */
 app.use((error, req, res, next) => {
     const status = error.statusCode || 500;
     const message = error.message;
@@ -91,7 +91,7 @@ app.use((error, req, res, next) => {
     res.status(status).json({ message, data });
 });
 
-// DB SERVER
+/* -------------------- DB + SERVER -------------------- */
 mongoose
     .connect(MONGODB_URI)
     .then(result => {
